@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "*.tcc": "cpp",
+        "bitset": "cpp",
+        "vector": "cpp",
+        "memory": "cpp",
+        "optional": "cpp",
+        "string_view": "cpp",
+        "functional": "cpp",
+        "random": "cpp",
+        "string": "cpp",
+        "system_error": "cpp",
+        "thread": "cpp"
+    }
+}
