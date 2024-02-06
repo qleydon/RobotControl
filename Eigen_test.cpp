@@ -17,5 +17,4 @@ int main(){
 
     cout<<tst<<endl;
     cout<<tst_inv<<endl;
-
 }

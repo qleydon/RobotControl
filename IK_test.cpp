@@ -12,24 +12,58 @@ using Eigen::VectorXd;
 
 class Robot{
 private:
-    double d1 =  0.089159;
-    double a2 = -0.425;
-    double a3 = -0.39225;
-    double a7 = 0.075;
-    double d4 =  0.10915;
-    double d5 =  0.09465;
-    double d6 =  0.0823;
-    vector<double> d;
-    vector<double> a;
-    vector<double> alph;
-    Eigen::MatrixXd th; // 8 possible positions
+
+    vector<double> d{0.089159, 0, 0, 0.10915, 0.09465, 0.0823}; //ur5
+    //d = mat([0.1273, 0, 0, 0.163941, 0.1157, 0.0922])#ur10 mm
+    vector<double> a{0 ,-0.425 ,-0.39225 ,0 ,0 ,0}; //ur5
+    //a =mat([0 ,-0.612 ,-0.5723 ,0 ,0 ,0])#ur10 mm
+    vector<double> alph{pi/2, 0, 0, pi/2, -pi/2, 0};  //ur5
+    //alph = mat([pi/2, 0, 0, pi/2, -pi/2, 0 ]) # ur10
+
+    double end_effector = 0.075;
+
+    double d1 = d[0];
+    double a2 = a[1];
+    double a3 = a[2];
+    double a7 = end_effector;
+    double d4 =  d[3];
+    double d5 =  d[4];
+    double d6 =  d[5];
+
+    MatrixXd th = MatrixXd::Zero(6,8);
 
 public:
     Robot(){
-        d={0.089159, 0, 0, 0.10915, 0.09465, 0.0823};
-        a={0 ,-0.425 ,-0.39225 ,0 ,0 ,0};
-        alph={pi/2, 0, 0, pi/2, -pi/2, 0};
-        th = MatrixXd::Zero(6,8);
+    
+    }
+
+    MatrixXd rpy(double x, double y, double z){
+        MatrixXd roll(4,4);
+        roll << 1, 0, 0, 0, 
+                0, cos(x), -sin(x), 0,
+                0, sin(x), cos(x), 0,
+                0, 0, 0, 1;
+        
+        MatrixXd pitch(4,4);
+        pitch << cos(y), 0, sin(y), 0,
+                0, 1, 0, 0,
+                -sin(y), 0, cos(y), 0,
+                0, 0, 0, 1;
+
+        MatrixXd yaw(4,4);
+        yaw << cos(z), -sin(z), 0, 0,
+                sin(z), cos(z), 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1;
+
+        return yaw * pitch * roll;
+    }
+
+    void pos(MatrixXd &g, double x, double y, double z){
+        g(0,3) = x;
+        g(1,3) = y;
+        g(2,3) = z;
+        return;
     }
 
     MatrixXd AH(int n, int c){ // C may change
@@ -54,7 +88,7 @@ public:
         return A_i;
     }    
 
-    void HTrans(int c, MatrixXd &T_06){
+    MatrixXd HTrans(int c){
         MatrixXd A_1, A_2, A_3, A_4, A_5, A_6;
         A_1=AH(1,c);
         A_2=AH(2,c);
@@ -63,8 +97,8 @@ public:
         A_5=AH(5,c);
         A_6=AH(6,c);
 
-        T_06 = A_1*A_2*A_3*A_4*A_5*A_6;
-        return;
+        MatrixXd T_06 = A_1*A_2*A_3*A_4*A_5*A_6;
+        return T_06;
     }
 
     Eigen::MatrixXd invKine(Eigen::MatrixXd desired_pos){
@@ -139,11 +173,6 @@ public:
             th(3, c) = std::atan2(T_34(1, 0), T_34(0, 0));
         }
         th = th.real();
-
-        return(th);
-    }
-
-    Eigen::MatrixXd getTheta(){
         return(th);
     }
 };
@@ -151,12 +180,29 @@ public:
 int main(){
     Robot r1;
     Eigen::MatrixXd goal(4,4);
-    goal<<-0.5, 0.5, 0.5, 0.5,
-        0.5, -0.5, 0.5, 0.5,
-        0.5, 0.5, -0.5, 0.5,
-        0.0, 0.0, 0.0, 1.0;
+    goal << -0.13909,	-0.85517,	-0.49934,	0.17395,
+            -0.98966,	0.13781,	0.03966,	0.63772,
+            0.03490,	0.49970,	-0.86550,	0.51277,
+            0.00000,	0.00000,	0.00000,	1.00000;
 
-    cout<<r1.invKine(goal)<<endl;
+    cout << "goal = "<< endl;
+    cout << goal <<endl;
+    
+    MatrixXd th = r1.invKine(goal);
+    cout<< "IK theta = "<<endl;
+    cout<<th<<endl;
+    
+    int c = 0;
+    cout<< "theta degrees = "<<endl;
+    cout<< th.col(c) * 180/pi<<endl;
+
+
+    MatrixXd T_06 = r1.HTrans(0);
+    cout << ("end posiiton = ")<<endl;
+    cout << T_06 << endl;
+
+    cout <<"error = "<<endl;
+    cout << T_06 - goal <<endl;
     return 0;
 }
 

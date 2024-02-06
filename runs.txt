@@ -1,0 +1,6 @@
+g++ ./hello_world_3d.cpp -std=c++17 -I./include -I/usr/include/python3.8 -lpython3.8
+g++ -I ~/eigen-3.4.0/ IK.cpp -o IK
+g++ IK_test.cpp -I~/eigen-3.4.0/ -o IK_test
+
+g++ ./IK.cpp -std=c++17 -I~/eigen-3.4.0/ -I./include -I/usr/include/python3.8 -lpython3.8
+

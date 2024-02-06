@@ -324,7 +324,7 @@ goal_2 = ([
 g1 = rpy(0,0,0)
 g1 = pos(g1, 0.5, 0.5, 0.5)
 
-goal = g1
+goal = goal_2
 
 
 print("goal =")
