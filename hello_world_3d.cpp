@@ -3,6 +3,8 @@
 #include <matplotlibcpp17/mplot3d.h>
 #include <vector>
 
+using namespace std;
+
 int main() {
     pybind11::scoped_interpreter guard{};
     auto plt = matplotlibcpp17::pyplot::import();

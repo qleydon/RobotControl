@@ -4,6 +4,7 @@
 using namespace std;
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
+//using Eigen::Tensor;
 
 
 int main(){
@@ -17,4 +18,13 @@ int main(){
 
     cout<<tst<<endl;
     cout<<tst_inv<<endl;
+    
+    // Create a tensor of zeros with dimensions 4x4x100
+    Eigen::Tensor<double, 3> tensor(4, 4, 100);
+    tensor.setZero();
+
+    std::cout << "Tensor dimensions: " << tensor.dimension(0) << "x" << tensor.dimension(1) << "x" << tensor.dimension(2) << std::endl;
+
+
+    return 0;
 }

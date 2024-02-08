@@ -4,3 +4,4 @@ g++ IK_test.cpp -I~/eigen-3.4.0/ -o IK_test
 
 g++ ./IK.cpp -std=c++17 -I~/eigen-3.4.0/ -I./include -I/usr/include/python3.8 -lpython3.8
 
+g++ ./plot3d_class.cpp -std=c++17 -I./include -I/usr/include/python3.8 -lpython3.8

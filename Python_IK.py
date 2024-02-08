@@ -264,9 +264,9 @@ def show(th, c):
 
     # Connect the points with lines
     ax.plot(x, y, z, c='gray', linewidth=20, label='Lines')
-
+    ax.plot(x, y, z, 'bo', markersize=20, label='markers')
     # Scatter plot
-    ax.scatter(x, y, z, c='blue', marker='o',s = 500, label='Points')
+    #ax.scatter(x, y, z, c='blue', marker='o',s = 500, label='Points')
 
     # Set labels for each axis
     ax.set_xlabel('X-axis')
@@ -286,7 +286,7 @@ def show_movement(th, c, theta, steps):
 
     # Connect the points with lines
     ax.plot(x, y, z, c='gray', linewidth=20, label='Lines')
-
+    
     # Scatter plot
     sc = ax.scatter(x, y, z, c='blue', marker='o',s = 500, label='Points')
 
