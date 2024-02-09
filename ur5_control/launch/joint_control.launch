@@ -1,0 +1,7 @@
+<launch>
+    <!-- Launch file for joint control node -->
+
+    <!-- Launch your C++ node -->
+    <node name="joint_control_node" pkg="ur5_control" type="joint_control" output="screen"/>
+
+</launch>

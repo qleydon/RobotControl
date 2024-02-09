@@ -1,0 +1,20 @@
+rostopic pub /ur5/elbow_joint_controller/command std_msgs/Float64 "data: -0.9"
+
+
+
+rostopic pub /joint_states sensor_msgs/JointState "header: 
+  seq: 981
+  stamp: 
+    secs: 1707440257
+    nsecs:  20505905
+  frame_id: ''
+name: 
+  - shoulder_pan_joint
+  - shoulder_lift_joint
+  - elbow_joint
+  - wrist_1_joint
+  - wrist_2_joint
+  - wrist_3_joint
+position: [0, 0, 0, 0, 0.0, 0.0]
+velocity: []
+effort: []"
