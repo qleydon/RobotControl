@@ -1,8 +1,15 @@
+#include "ros/ros.h"
+#include <ros/package.h>
+#include "std_msgs/String.h"
+#include "std_msgs/Float64.h"
+#include "control_msgs/JointControllerState.h"
+
 #include<iostream>
 #include<Eigen/Dense>
 #include<math.h>
 #include<vector>
 
+#include <matplotlibcpp17/cm.h>
 #include <matplotlibcpp17/axes.h>
 #include <matplotlibcpp17/pyplot.h>
 #include <matplotlibcpp17/mplot3d.h>
@@ -18,15 +25,26 @@ using Eigen::VectorXd;
 #define pi 3.141592653589
 
 
+
 class Robot{
 private:
+    //ROS
+    ros::NodeHandle *n;
+    ros::Subscriber shoulder_pan_joint_sub;
+    ros::Subscriber shoulder_lift_joint_sub;
+    ros::Subscriber elbow_joint_sub;
+    ros::Subscriber wrist_1_joint_sub;
+    ros::Subscriber wrist_2_joint_sub;
+    ros::Subscriber wrist_3_joint_sub;
+    ros::Publisher joint_com_pub[6];
+    std_msgs::Float64 jnt_pos_start[6];
 
     //controlable 
     double end_effector = 0.075;
     MatrixXd goal = MatrixXd::Zero(4,4);
     int steps = 100;
+    double time_step = 0.01;
     int choice = 0;
-
 
     //DH table
     const vector<double> d{0.089159, 0, 0, 0.10915, 0.09465, 0.0823}; //ur5
@@ -53,11 +71,81 @@ private:
     MatrixXd yt = MatrixXd::Zero(6, steps);
     MatrixXd zt = MatrixXd::Zero(6, steps);
 
+    void get_shoulder_pan_joint_position(const control_msgs::JointControllerState::ConstPtr& ctr_msg) {
+        jnt_pos_start[0].data = ctr_msg->process_value;
+    }
+
+    void get_shoulder_lift_joint_position(const control_msgs::JointControllerState::ConstPtr& ctr_msg) {
+        jnt_pos_start[1].data = ctr_msg->process_value;
+    }
+
+    void get_elbow_joint_position(const control_msgs::JointControllerState::ConstPtr& ctr_msg) {
+        jnt_pos_start[2].data = ctr_msg->process_value;
+    }
+
+    void get_wrist_1_joint_position(const control_msgs::JointControllerState::ConstPtr& ctr_msg) {
+        jnt_pos_start[3].data = ctr_msg->process_value;
+    }
+
+    void get_wrist_2_joint_position(const control_msgs::JointControllerState::ConstPtr& ctr_msg) {
+        jnt_pos_start[4].data = ctr_msg->process_value;
+    }
+
+    void get_wrist_3_joint_position(const control_msgs::JointControllerState::ConstPtr& ctr_msg) {
+        jnt_pos_start[5].data = ctr_msg->process_value;
+    }
+
+    void initializeSubscribers() {
+        shoulder_pan_joint_sub = n->subscribe("/shoulder_pan_joint_position_controller/state", 1000, &Robot::get_shoulder_pan_joint_position, this);
+        shoulder_lift_joint_sub = n->subscribe("/shoulder_lift_joint_position_controller/state", 1000, &Robot::get_shoulder_lift_joint_position, this);
+        elbow_joint_sub = n->subscribe("/elbow_joint_position_controller/state", 1000, &Robot::get_elbow_joint_position, this);
+        wrist_1_joint_sub = n->subscribe("/wrist_1_joint_position_controller/state", 1000, &Robot::get_wrist_1_joint_position, this);
+        wrist_2_joint_sub = n->subscribe("/wrist_2_joint_position_controller/state", 1000, &Robot::get_wrist_2_joint_position, this);
+        wrist_3_joint_sub = n->subscribe("/wrist_3_joint_position_controller/state", 1000, &Robot::get_wrist_3_joint_position, this);
+    }
+
+    void initializePublishers() {
+        joint_com_pub[0] = n->advertise<std_msgs::Float64>("/shoulder_pan_joint_position_controller/command", 1000);
+        joint_com_pub[1] = n->advertise<std_msgs::Float64>("/shoulder_lift_joint_position_controller/command", 1000);
+        joint_com_pub[2] = n->advertise<std_msgs::Float64>("/elbow_joint_position_controller/command", 1000);
+        joint_com_pub[3] = n->advertise<std_msgs::Float64>("/wrist_1_joint_position_controller/command", 1000);
+        joint_com_pub[4] = n->advertise<std_msgs::Float64>("/wrist_2_joint_position_controller/command", 1000);
+        joint_com_pub[5] = n->advertise<std_msgs::Float64>("/wrist_3_joint_position_controller/command", 1000);
+    }
+    
+    
 public:
-    Robot(MatrixXd g):goal(g){}
-    Robot(double roll, double pitch, double yaw, double x, double y, double z){
-        goal = rpy(roll, pitch, yaw);
-        pos(goal, x, y, z);
+    Robot(int argc, char **argv) {
+        ros::init(argc, argv, "IK");
+        n = new ros::NodeHandle();
+        initializeSubscribers();
+        initializePublishers();
+
+    }
+    ~Robot(){
+        delete n;
+        cout<<endl<<endl<<"BEEEE BOOOOOOOOOPPP...."<<endl<<endl<<endl;
+    }
+   
+
+
+    void run() {
+        std_msgs::Float64 position[6];
+        //while (ros::ok()) {
+            for(int i = 0; i < 6; i++) {
+                position[i].data = -0.1;
+                joint_com_pub[i].publish(position[i]);
+            }
+            ros::spinOnce();
+            ros::Duration(3.0).sleep();
+
+            for(int i = 0; i < 6; i++) {
+                position[i].data = -1;
+                joint_com_pub[i].publish(position[i]);
+            }
+            ros::spinOnce();
+            ros::Duration(3.0).sleep();
+        //}
     }
 
     MatrixXd rpy(double x, double y, double z){
@@ -86,6 +174,17 @@ public:
         g(0,3) = x;
         g(1,3) = y;
         g(2,3) = z;
+        return;
+    }
+
+    void set_goal(MatrixXd g){
+        goal = g;
+        return;
+    }
+
+    void set_goal(double roll, double pitch, double yaw, double x, double y, double z){
+        goal = rpy(roll, pitch, yaw);
+        pos(goal, x, y, z);
         return;
     }
 
@@ -384,14 +483,51 @@ public:
         plt.show();
     }
 
-    void show_movement(){
-        find_steps(); // update array of x,y,z
+    void show_end(){
+        MatrixXd x(6,8);
+        MatrixXd y(6,8);
+        MatrixXd z(6,8);
 
-        py::scoped_interpreter guard{};
+        Joint_positions(x, y, z);
+
+        vector<double> xs(6,0);
+        vector<double> ys(6,0);
+        vector<double> zs(6,0);
+
+        pybind11::scoped_interpreter guard{};
         auto plt = matplotlibcpp17::pyplot::import();
         matplotlibcpp17::mplot3d::import();
+        auto [w, h] = plt.figaspect(Args(0.5));
+        auto fig = plt.figure(Args(), Kwargs("figsize"_a = py::make_tuple(w, h)));
+        std::string str;
+        for(int j=0; j<8; j++)
+        {
+            
+            auto ax = fig.add_subplot(Args(2, 4, j+1), Kwargs("projection"_a = "3d"));
+            //for(int j=0;j<8;j++){
+            for(int i = 0; i<6; i++){
+                xs[i] = x(i,j);
+                ys[i] = y(i,j);
+                zs[i] = z(i,j);
+            }
 
-        auto fig = plt.figure();
+            ax.plot(Args(xs, ys, zs), Kwargs("color"_a = "gray", "linewidth"_a = 20));
+            ax.plot(Args(xs, ys, zs), Kwargs("linestyle"_a = "none", "color"_a = "blue", "marker"_a = "o", "markersize"_a = 20));
+            str = "Choice: " + std::to_string(j);
+            ax.set_title(Args(str));
+            
+        }
+        // Show the plot
+        plt.show();
+    }
+
+    void show_movement(){
+        py::scoped_interpreter guard{};
+        auto plt_1 = matplotlibcpp17::pyplot::import();
+        //matplotlibcpp17::pyplot::PyPlot plt;
+        matplotlibcpp17::mplot3d::import();
+
+        auto fig = plt_1.figure();
         auto ax =  fig.add_subplot(py::make_tuple(), Kwargs("projection"_a = "3d"));
         
         py::list artist_list;
@@ -421,12 +557,85 @@ public:
                              Kwargs("interval"_a = 100));
         
         cout<<"about to show"<<endl;
+        plt_1.show();
+        return;
+    }
+
+    void report_stats(){
+        // Compute the difference between consecutive columns
+        MatrixXd vx = xt.block(0, 1, 6, 99) - xt.block(0, 0, 6, 99);
+        MatrixXd vy = yt.block(0, 1, 6, 99) - yt.block(0, 0, 6, 99);
+        MatrixXd vz = zt.block(0, 1, 6, 99) - zt.block(0, 0, 6, 99);
+
+        MatrixXd axt = vx.block(0, 1, 6, 98) - vx.block(0, 0, 6, 98);
+        MatrixXd ayt = vy.block(0, 1, 6, 98) - vy.block(0, 0, 6, 98);
+        MatrixXd azt = vz.block(0, 1, 6, 98) - vz.block(0, 0, 6, 98);
+
+        cout << "Size of vx matrix: " << vx.rows() << " rows x " << vx.cols() << " columns" << endl;
+        cout << "Size of ax matrix: " << axt.rows() << " rows x " << axt.cols() << " columns" << endl;
+        MatrixXd vt = 1/time_step * (vx.array().pow(2) + vy.array().pow(2) + vz.array().pow(2)).sqrt();
+        MatrixXd at = 1/time_step * 1/time_step * (axt.array().pow(2) + ayt.array().pow(2) + azt.array().pow(2)).sqrt();
+
+        cout << "vt: " << vt.transpose();
+        
+        
+        std::vector<double> temp_v(100, 0);
+        std::vector<double> temp_a(100, 0);
+        std::vector<double> time(100,0);
+
+        for(int i =1; i<100; i++){
+            time[i] = i;
+        }
+
+
+        py::scoped_interpreter guard{};
+        auto plt = matplotlibcpp17::pyplot::import();
+        cout << "plot made"<<endl;
+        //auto fig = plt.figure();
+
+
+        auto [fig, axes] =
+            plt.subplots(2,3,
+                        Kwargs("figsize"_a = py::make_tuple(9, 6),
+                                "subplot_kw"_a = py::dict("aspect"_a = "equal")));
+        auto ax1 = axes[0], ax2 = axes[1], ax3 = axes[2];
+        /*
+        axes[0].plot(Args(time, time), Kwargs("color"_a = "blue"));
+        axes[1].plot(Args(time, time), Kwargs("color"_a = "red"));
+        axes[2].plot(Args(time, time), Kwargs("color"_a = "orange"));
+        axes[3].plot(Args(time, time), Kwargs("color"_a = "blue"));
+        axes[4].plot(Args(time, time), Kwargs("color"_a = "red"));
+        axes[5].plot(Args(time, time), Kwargs("color"_a = "orange"));
+        */
+
+        std::string str;
+        for(int j=0; j<6; j++){
+            for(int i =1; i<100; i++){
+                temp_v[i] = vt(j,i-1);
+                if(i!=1){
+                    temp_a[i] = at(j,i-2);
+                }
+            }
+            axes[j].plot(Args(time, temp_v), Kwargs("color"_a = "blue", "label"_a="velocity (m/s)"));
+            axes[j].plot(Args(time, temp_a), Kwargs("color"_a = "red", "label"_a="acceleration (m/s^2)"));
+            axes[j].set_xlabel(Args("time (s)"));
+            str = "Joint " + std::to_string(j+1);
+            axes[j].set_title(Args(str));
+        }
+        axes[0].legend();
+        //plt.legend(Args("velocity", "acceleration"))
+        
         plt.show();
         return;
     }
+    
 };
 
-int main(){
+int main(int argc, char **argv){
+    
+    Robot r1(argc, argv);
+    //r1.run();
+    
     Eigen::MatrixXd goal(4,4);
     goal << -0.13909,	-0.85517,	-0.49934,	0.17395,
             -0.98966,	0.13781,	0.03966,	0.63772,
@@ -436,7 +645,7 @@ int main(){
     cout << "goal = "<< endl;
     cout << goal <<endl;
     
-    Robot r1(goal);
+    r1.set_goal(goal);
     
     MatrixXd th = r1.invKine(goal);
     cout<< "IK theta = "<<endl;
@@ -454,12 +663,12 @@ int main(){
     cout <<"error = "<<endl;
     cout << T_06 - goal <<endl;
 
+    r1.show_end();
     //r1.show_end(0);
     //r1.find_steps();
-    r1.show_movement();
+    //r1.show_movement();
 
-
-
-    return 0;
+    //r1.report_stats();
+    return 0; 
 }
 
