@@ -7,7 +7,10 @@
 #include<iostream>
 #include<Eigen/Dense>
 #include<math.h>
+#include<cmath>
 #include<vector>
+#include<string>
+#include<cstring>
 
 #include <matplotlibcpp17/cm.h>
 #include <matplotlibcpp17/axes.h>
@@ -40,11 +43,13 @@ private:
     std_msgs::Float64 jnt_pos_start[6];
 
     //controlable 
-    double end_effector = 0.075;
+    double end_effector = 0.0;
     MatrixXd goal = MatrixXd::Zero(4,4);
     int steps = 100;
-    double time_step = 0.01;
+    double time_step = 0.1;
     int choice = 0;
+    double floor = -0.3;
+    double position_tolerence = 0.1;
 
     //DH table
     const vector<double> d{0.089159, 0, 0, 0.10915, 0.09465, 0.0823}; //ur5
@@ -336,7 +341,7 @@ public:
     Eigen::MatrixXd invKine(Eigen::MatrixXd desired_pos){
         //P_05
         Eigen::MatrixXd P_05 = (desired_pos * Eigen::Vector4d(0, 0, -d6, 1)).transpose() - Eigen::Vector4d(0, 0, 0, 1).transpose();
-        cout<<"P_05: "<<P_05<<endl<<endl;
+        //cout<<"P_05: "<<P_05<<endl<<endl;
         // theta1
         double psi = atan2(P_05(2-1), P_05(1-1));
         double phi = acos(d4/sqrt(P_05(2-1)*P_05(2-1) + P_05(1-1) * P_05(1-1)));
@@ -430,6 +435,14 @@ public:
         return;
     }
 
+    void report_error(){
+        for(int j =0; j <8; j++){
+            cout << "error for option " << j << endl;
+            cout << HTrans(0) - goal << endl;
+        }
+        return;
+    }
+
     void demo(){
         pybind11::scoped_interpreter guard{};
         auto plt = matplotlibcpp17::pyplot::import();
@@ -469,7 +482,7 @@ public:
         //cout<<"xs: "<<endl;
         //cout << xs <<endl;
 
-        pybind11::scoped_interpreter guard{};
+        //pybind11::scoped_interpreter guard{};
         auto plt = matplotlibcpp17::pyplot::import();
         matplotlibcpp17::mplot3d::import();
 
@@ -478,7 +491,13 @@ public:
         auto ax =  fig.add_subplot(py::make_tuple(), Kwargs("projection"_a = "3d"));
         ax.plot(Args(xs, ys, zs), Kwargs("color"_a = "gray", "linewidth"_a = 20));
         ax.plot(Args(xs, ys, zs), Kwargs("linestyle"_a = "none", "color"_a = "blue", "marker"_a = "o", "markersize"_a = 20));
+        ax.set_xlim(Args(-1, 1));
+        ax.set_ylim(Args(-1, 1));
+        ax.set_zlim(Args(0, 1));
 
+        ax.set_xlabel(Args("X"));
+        ax.set_ylabel(Args("Y"));
+        ax.set_zlabel(Args("Z"));
         // Show the plot
         plt.show();
     }
@@ -494,7 +513,7 @@ public:
         vector<double> ys(6,0);
         vector<double> zs(6,0);
 
-        pybind11::scoped_interpreter guard{};
+        //pybind11::scoped_interpreter guard{};
         auto plt = matplotlibcpp17::pyplot::import();
         matplotlibcpp17::mplot3d::import();
         auto [w, h] = plt.figaspect(Args(0.5));
@@ -515,6 +534,13 @@ public:
             ax.plot(Args(xs, ys, zs), Kwargs("linestyle"_a = "none", "color"_a = "blue", "marker"_a = "o", "markersize"_a = 20));
             str = "Choice: " + std::to_string(j);
             ax.set_title(Args(str));
+            ax.set_xlim(Args(-1, 1));
+            ax.set_ylim(Args(-1, 1));
+            ax.set_zlim(Args(-0.1, 1));
+
+            ax.set_xlabel(Args("X"));
+            ax.set_ylabel(Args("Y"));
+            ax.set_zlabel(Args("Z"));
             
         }
         // Show the plot
@@ -522,43 +548,51 @@ public:
     }
 
     void show_movement(){
-        py::scoped_interpreter guard{};
         auto plt_1 = matplotlibcpp17::pyplot::import();
-        //matplotlibcpp17::pyplot::PyPlot plt;
         matplotlibcpp17::mplot3d::import();
 
         auto fig = plt_1.figure();
         auto ax =  fig.add_subplot(py::make_tuple(), Kwargs("projection"_a = "3d"));
-        
+
         py::list artist_list;
 
-        //vector<double> xs(0,6);
-        //vector<double> ys(0,6);
-        //vector<double> zs(0,6);
-
         for (int j = 0; j < steps; j++) {
-            std::vector<double> xs(6,0);
-            std::vector<double> ys(6,0);
-            std::vector<double> zs(6,0);
+            // Clear the plot for the next frame
+            ax.cla();
+            
+
+            // Get coordinates for the current time step
+            std::vector<double> xs(6, 0);
+            std::vector<double> ys(6, 0);
+            std::vector<double> zs(6, 0);
             for (int i = 0; i < 6; i++) {
-                //cout <<j << " , "<<i << endl;
-                
-                xs[i] = double(xt(i,j));
-                ys[i] = double(yt(i,j));
-                zs[i] = double(zt(i,j));
-                
-                //ax.plot(Args(xs, ys, zs), Kwargs());
+                xs[i] = double(xt(i, j));
+                ys[i] = double(yt(i, j));
+                zs[i] = double(zt(i, j));
             }
-            ax.plot(Args(xs, ys, zs), Kwargs("color"_a = "blue", "lw"_a = 1));
+
+            // Plot the current arm
+            ax.plot(Args(xs, ys, zs), Kwargs("color"_a = "gray", "linewidth"_a = 20));
+            ax.plot(Args(xs, ys, zs), Kwargs("linestyle"_a = "none", "color"_a = "blue", "marker"_a = "o", "markersize"_a = 20));
+
+            // Append the current frame to the artist list
             artist_list.append(ax.get_lines().unwrap());
+            // Pause to create animation effect
+            ax.set_xlim(Args(-1, 1));
+            ax.set_ylim(Args(-1, 1));
+            ax.set_zlim(Args(-0.1, 1));
+
+            ax.set_xlabel(Args("X"));
+            ax.set_ylabel(Args("Y"));
+            ax.set_zlabel(Args("Z"));
+            plt_1.pause(Args(0.1));
         }
-        cout<<"ani"<<endl<<endl;
-        auto ani = ArtistAnimation(Args(fig.unwrap(), artist_list),
-                             Kwargs("interval"_a = 100));
-        
-        cout<<"about to show"<<endl;
+
+        // Create the animation
+        auto ani = ArtistAnimation(Args(fig.unwrap(), artist_list), Kwargs("interval"_a = 100));
+        // Show the animation
         plt_1.show();
-        return;
+        //ani.save(Args("movement.gif"), Kwargs("writer"_a = "pillow"));
     }
 
     void report_stats(){
@@ -571,12 +605,12 @@ public:
         MatrixXd ayt = vy.block(0, 1, 6, 98) - vy.block(0, 0, 6, 98);
         MatrixXd azt = vz.block(0, 1, 6, 98) - vz.block(0, 0, 6, 98);
 
-        cout << "Size of vx matrix: " << vx.rows() << " rows x " << vx.cols() << " columns" << endl;
-        cout << "Size of ax matrix: " << axt.rows() << " rows x " << axt.cols() << " columns" << endl;
+        //cout << "Size of vx matrix: " << vx.rows() << " rows x " << vx.cols() << " columns" << endl;
+        //cout << "Size of ax matrix: " << axt.rows() << " rows x " << axt.cols() << " columns" << endl;
         MatrixXd vt = 1/time_step * (vx.array().pow(2) + vy.array().pow(2) + vz.array().pow(2)).sqrt();
         MatrixXd at = 1/time_step * 1/time_step * (axt.array().pow(2) + ayt.array().pow(2) + azt.array().pow(2)).sqrt();
 
-        cout << "vt: " << vt.transpose();
+        //cout << "vt: " << vt.transpose();
         
         
         std::vector<double> temp_v(100, 0);
@@ -588,9 +622,9 @@ public:
         }
 
 
-        py::scoped_interpreter guard{};
+        //py::scoped_interpreter guard{};
         auto plt = matplotlibcpp17::pyplot::import();
-        cout << "plot made"<<endl;
+        //cout << "plot made"<<endl;
         //auto fig = plt.figure();
 
 
@@ -621,6 +655,7 @@ public:
             axes[j].set_xlabel(Args("time (s)"));
             str = "Joint " + std::to_string(j+1);
             axes[j].set_title(Args(str));
+            axes[j].set_ylim(Args(0, 5));
         }
         axes[0].legend();
         //plt.legend(Args("velocity", "acceleration"))
@@ -628,47 +663,192 @@ public:
         plt.show();
         return;
     }
-    
+
+    bool validate_robot(){
+        MatrixXd err = HTrans(0) - goal;
+
+        if(err(0,3) >= position_tolerence || err(0,3) >= position_tolerence || err(0,3) >= position_tolerence){
+            cout << "error out of tollerence" << endl;
+            return false;
+        }
+
+        for(int j =0; j<6; j++){
+            for(int i =0; i<steps; i++){
+                if(zt(j,i) <= floor){
+                    cout<<"joint "<< j<<" moves to invalid position ("<<xt(j,i)<<","<<yt(j,i)<<","<<zt(j,i)<<")"<<endl;
+                    return false;
+                }
+                if(isnan(theta(j,i)) || isinf(theta(j,i))){
+                    cout << "theta invalid for joint " << j << " theta " << i << ": " << theta(j,i) << endl;
+                    return false;
+                }
+            }
+        }
+
+        
+        return true;
+    }
+
+    void reset_robot(){
+        std_msgs::Float64 position[6];
+        ros::Duration(1).sleep();
+        for(int j =0; j<20; j++){
+            for(int i = 0; i < 6; i++) {
+                position[i].data = 0.0;
+                joint_com_pub[i].publish(position[i]);
+            }
+            ros::spinOnce();
+            ros::Duration(0.1).sleep();
+        }
+        
+    }
+
+    void move_robot(){
+        std_msgs::Float64 position[6];
+            for(int j =0; j<steps; j++){
+                for(int i = 0; i < 6; i++) {
+                    position[i].data = theta(i, j);
+                    joint_com_pub[i].publish(position[i]);
+                }
+                ros::spinOnce();
+                ros::Duration(time_step).sleep();
+            }
+        return;
+    }
+
+    bool unit_test_1(){ // should work fine
+        reset_robot();
+        set_goal(0,0,0, 0.5,0.5,0.5);
+        invKine(goal);
+        report_error();
+        show_end();
+        choice = 1;
+        show_end(choice);
+        find_steps();
+
+        cout << "theta" << endl<< theta.transpose()<<endl;
+
+        if(validate_robot()){
+            show_movement();
+            report_stats();
+            move_robot();
+        }
+        else{
+            cout <<endl<<endl<< "validation failed unit test 1 !!!"<<endl<<endl;
+            return false;
+        }
+        return true;
+    }
+
+    bool unit_test_2(){ // Invalid postion, too low
+        reset_robot();
+        set_goal(0.0,0.0,0.0,0.5,0.5,-0.5);
+        invKine(goal);
+        report_error();
+        show_end();
+        choice = 1;
+        show_end(choice);
+        find_steps();
+        if(validate_robot()){
+            cout <<endl<<endl<< "validation should have failed, unit test 2 failure!!!"<<endl<<endl;
+            return false;
+        }
+        return true;
+    }
+
+    bool unit_test_3(){ // Invalid postion, interior
+        reset_robot();
+        set_goal(0.5,0.5,0.5,0,0,0);
+        invKine(goal);
+        report_error();
+        show_end();
+        choice = 1;
+        show_end(choice);
+        find_steps();
+        if(validate_robot()){
+            cout <<endl<<endl<< "validation should have failed, unit test 3 failure!!!"<<endl<<endl;
+            return false;
+        }
+        return true;
+    }
+
+    bool unit_test_4(){ // Invalid postion, exterior
+        reset_robot();
+        set_goal(0.5,0.5,0.5, 0.5,0.5,3.5);
+        invKine(goal);
+        report_error();
+        show_end();
+        choice = 1;
+        show_end(choice);
+        find_steps();
+        if(validate_robot()){
+            cout <<endl<<endl<< "validation should have failed, unit test 4 failure!!!"<<endl<<endl;
+            return false;
+        }
+        return true;
+    }
+
+    bool unit_test(){
+        bool t1 = unit_test_1();
+        bool t2 = unit_test_2();
+        bool t3 = unit_test_3();
+        bool t4 = unit_test_4();
+
+        if(t1 && t2 && t3 && t4){
+            cout <<endl<<endl<< "Unit Test Passed"<<endl<<endl;
+            return true;
+        }
+        return false;
+    }
+
+   void run_robot(){
+        reset_robot();
+        // -------------------------------------------------------------------------------------
+        // set goal
+        // -------------------------------------------------------------------------------------
+        double x, y, z, roll, pitch, yaw;
+        cout << "Enter desired x, y, z"<<endl;
+        cin >> x>>y>>z;
+        cout << "Enter desired roll, pitch, yaw"<<endl;
+        cin >> roll>>pitch>>yaw;
+        set_goal(roll, pitch, yaw, x, y, z);
+        cout << "goal: "<< endl << goal << endl;
+        // -------------------------------------------------------------------------------------
+        // Inverse Kinematics
+        // -------------------------------------------------------------------------------------
+        MatrixXd th = invKine(goal);
+        report_error();
+        show_end();
+        cout << endl << "choice: ";
+        cin >> choice;
+        cout << endl << "theta in degrees: " <<endl<<th.col(choice) * 180/pi;
+        show_end(choice);
+        // -------------------------------------------------------------------------------------
+        // motion planning
+        // -------------------------------------------------------------------------------------
+        find_steps();
+        show_movement();
+        report_stats();
+        // -------------------------------------------------------------------------------------
+        // motion
+        // -------------------------------------------------------------------------------------
+        string str;
+        cout << "move robot [y/n]"<<endl;
+        cin >> str;
+        transform(str.begin(), str.end(), str.begin(), ::tolower); 
+        if(str == "y" || str == "yes"){
+            cout << "moving robot"<<endl;
+            move_robot();
+        }
+        return;
+   }
 };
 
 int main(int argc, char **argv){
-    
+    py::scoped_interpreter guard{};
     Robot r1(argc, argv);
-    //r1.run();
-    
-    Eigen::MatrixXd goal(4,4);
-    goal << -0.13909,	-0.85517,	-0.49934,	0.17395,
-            -0.98966,	0.13781,	0.03966,	0.63772,
-            0.03490,	0.49970,	-0.86550,	0.51277,
-            0.00000,	0.00000,	0.00000,	1.00000;
-
-    cout << "goal = "<< endl;
-    cout << goal <<endl;
-    
-    r1.set_goal(goal);
-    
-    MatrixXd th = r1.invKine(goal);
-    cout<< "IK theta = "<<endl;
-    cout<<th<<endl;
-    
-    int c = 0;
-    cout<< "theta degrees = "<<endl;
-    cout<< th.col(c) * 180/pi<<endl;
-
-
-    MatrixXd T_06 = r1.HTrans(0);
-    cout << ("end posiiton = ")<<endl;
-    cout << T_06 << endl;
-
-    cout <<"error = "<<endl;
-    cout << T_06 - goal <<endl;
-
-    r1.show_end();
-    //r1.show_end(0);
-    //r1.find_steps();
-    //r1.show_movement();
-
-    //r1.report_stats();
+    r1.unit_test();
+    //r1.run_robot();
     return 0; 
 }
 
