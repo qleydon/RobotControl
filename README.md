@@ -19,6 +19,8 @@ new terminal
 $ source devel/setup.bash
 
 $ roslaunch ur5-joint-position-control ur5_joint_position_control.launch
+
 new terminal
+$ source devel/setup.bash
 
 $ roslaunch ur5_control IK.launch
