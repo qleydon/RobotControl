@@ -4,7 +4,7 @@ $ git clone https://github.com/dairal/ur5-joint-position-control.git
 
 $ sudo apt-get install ros-$ROS_DISTRO-ros-control ros-$ROS_DISTRO-ros-controllers
 
-$ git clone
+$ git clone https://github.com/qleydon/RobotControl.git
 
 $ catkin_make
 
