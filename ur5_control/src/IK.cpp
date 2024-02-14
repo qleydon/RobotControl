@@ -136,7 +136,6 @@ public:
 
     void run() {
         std_msgs::Float64 position[6];
-        //while (ros::ok()) {
             for(int i = 0; i < 6; i++) {
                 position[i].data = -0.1;
                 joint_com_pub[i].publish(position[i]);
@@ -150,7 +149,6 @@ public:
             }
             ros::spinOnce();
             ros::Duration(3.0).sleep();
-        //}
     }
 
     MatrixXd rpy(double x, double y, double z){
@@ -228,7 +226,7 @@ public:
         return T_06;
     }
 
-    MatrixXd AH(int n, int c, MatrixXd th_L){ // C may change
+    MatrixXd AH(int n, int c, MatrixXd th_L){
         MatrixXd T_a = MatrixXd::Identity(4,4);
         T_a(0,3) = a[n-1];
         MatrixXd T_d = MatrixXd::Identity(4,4);
@@ -339,9 +337,7 @@ public:
     }
 
     Eigen::MatrixXd invKine(Eigen::MatrixXd desired_pos){
-        //P_05
         Eigen::MatrixXd P_05 = (desired_pos * Eigen::Vector4d(0, 0, -d6, 1)).transpose() - Eigen::Vector4d(0, 0, 0, 1).transpose();
-        //cout<<"P_05: "<<P_05<<endl<<endl;
         // theta1
         double psi = atan2(P_05(2-1), P_05(1-1));
         double phi = acos(d4/sqrt(P_05(2-1)*P_05(2-1) + P_05(1-1) * P_05(1-1)));
@@ -414,11 +410,6 @@ public:
     }
 
     void find_steps(){
-        // theta(:,0) = current angles
-        
-        // MatrixXd theta(6,100)
-        // MatrixXd th(6,8)
-
         theta.col(steps - 1) = th.col(choice);
         MatrixXd dth = theta.col(steps-1) - theta.col(0);
         dth /=steps;
@@ -430,8 +421,6 @@ public:
 
         //update x,y,z
         Joint_positions(theta);
-        //cout<<"x = "<<endl;
-        //cout << xt.transpose()<<endl;
         return;
     }
 
@@ -479,10 +468,6 @@ public:
             zs[i] = z(i,c);
         }
 
-        //cout<<"xs: "<<endl;
-        //cout << xs <<endl;
-
-        //pybind11::scoped_interpreter guard{};
         auto plt = matplotlibcpp17::pyplot::import();
         matplotlibcpp17::mplot3d::import();
 
@@ -513,7 +498,6 @@ public:
         vector<double> ys(6,0);
         vector<double> zs(6,0);
 
-        //pybind11::scoped_interpreter guard{};
         auto plt = matplotlibcpp17::pyplot::import();
         matplotlibcpp17::mplot3d::import();
         auto [w, h] = plt.figaspect(Args(0.5));
@@ -523,7 +507,6 @@ public:
         {
             
             auto ax = fig.add_subplot(Args(2, 4, j+1), Kwargs("projection"_a = "3d"));
-            //for(int j=0;j<8;j++){
             for(int i = 0; i<6; i++){
                 xs[i] = x(i,j);
                 ys[i] = y(i,j);
@@ -592,7 +575,6 @@ public:
         auto ani = ArtistAnimation(Args(fig.unwrap(), artist_list), Kwargs("interval"_a = 100));
         // Show the animation
         plt_1.show();
-        //ani.save(Args("movement.gif"), Kwargs("writer"_a = "pillow"));
     }
 
     void report_stats(){
@@ -605,13 +587,8 @@ public:
         MatrixXd ayt = vy.block(0, 1, 6, 98) - vy.block(0, 0, 6, 98);
         MatrixXd azt = vz.block(0, 1, 6, 98) - vz.block(0, 0, 6, 98);
 
-        //cout << "Size of vx matrix: " << vx.rows() << " rows x " << vx.cols() << " columns" << endl;
-        //cout << "Size of ax matrix: " << axt.rows() << " rows x " << axt.cols() << " columns" << endl;
         MatrixXd vt = 1/time_step * (vx.array().pow(2) + vy.array().pow(2) + vz.array().pow(2)).sqrt();
-        MatrixXd at = 1/time_step * 1/time_step * (axt.array().pow(2) + ayt.array().pow(2) + azt.array().pow(2)).sqrt();
-
-        //cout << "vt: " << vt.transpose();
-        
+        MatrixXd at = 1/time_step * 1/time_step * (axt.array().pow(2) + ayt.array().pow(2) + azt.array().pow(2)).sqrt();  
         
         std::vector<double> temp_v(100, 0);
         std::vector<double> temp_a(100, 0);
@@ -621,26 +598,13 @@ public:
             time[i] = i;
         }
 
-
-        //py::scoped_interpreter guard{};
         auto plt = matplotlibcpp17::pyplot::import();
-        //cout << "plot made"<<endl;
-        //auto fig = plt.figure();
-
 
         auto [fig, axes] =
             plt.subplots(2,3,
                         Kwargs("figsize"_a = py::make_tuple(9, 6),
                                 "subplot_kw"_a = py::dict("aspect"_a = "equal")));
         auto ax1 = axes[0], ax2 = axes[1], ax3 = axes[2];
-        /*
-        axes[0].plot(Args(time, time), Kwargs("color"_a = "blue"));
-        axes[1].plot(Args(time, time), Kwargs("color"_a = "red"));
-        axes[2].plot(Args(time, time), Kwargs("color"_a = "orange"));
-        axes[3].plot(Args(time, time), Kwargs("color"_a = "blue"));
-        axes[4].plot(Args(time, time), Kwargs("color"_a = "red"));
-        axes[5].plot(Args(time, time), Kwargs("color"_a = "orange"));
-        */
 
         std::string str;
         for(int j=0; j<6; j++){
@@ -658,7 +622,6 @@ public:
             axes[j].set_ylim(Args(0, 5));
         }
         axes[0].legend();
-        //plt.legend(Args("velocity", "acceleration"))
         
         plt.show();
         return;
@@ -847,8 +810,8 @@ public:
 int main(int argc, char **argv){
     py::scoped_interpreter guard{};
     Robot r1(argc, argv);
-    r1.unit_test();
-    //r1.run_robot();
+    //r1.unit_test();
+    r1.run_robot();
     return 0; 
 }
 
